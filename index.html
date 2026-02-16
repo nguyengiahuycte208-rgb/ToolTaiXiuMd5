@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TOKYO MD5</title>
+
+<style>
+body{
+    margin:0;
+    font-family:Arial, Helvetica, sans-serif;
+    background:linear-gradient(135deg,#0f2027,#203a43,#2c5364);
+    height:100vh;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    overflow:hidden;
+    color:white;
+}
+
+.container{
+    width:360px;
+    background:rgba(255,255,255,0.05);
+    border-radius:20px;
+    padding:25px;
+    backdrop-filter:blur(10px);
+    box-shadow:0 0 30px rgba(0,0,0,0.6);
+    position:relative;
+    z-index:2;
+}
+
+h1{
+    text-align:center;
+    letter-spacing:3px;
+    margin-bottom:5px;
+}
+
+.sub{
+    text-align:center;
+    opacity:0.7;
+    margin-bottom:20px;
+}
+
+input{
+    width:100%;
+    padding:12px;
+    border-radius:10px;
+    border:none;
+    outline:none;
+    background:#0d1b2a;
+    color:#00eaff;
+    font-size:14px;
+}
+
+button{
+    margin-top:15px;
+    width:100%;
+    padding:12px;
+    border:none;
+    border-radius:10px;
+    font-weight:bold;
+    font-size:16px;
+    color:white;
+    cursor:pointer;
+    background:linear-gradient(45deg,red,orange,yellow,green,cyan,blue,purple);
+    background-size:400% 400%;
+    animation:rainbow 5s linear infinite;
+    box-shadow:0 0 20px rgba(255,255,255,0.5);
+}
+
+@keyframes rainbow{
+    0%{background-position:0% 50%;}
+    100%{background-position:100% 50%;}
+}
+
+.result{
+    margin-top:20px;
+    text-align:center;
+}
+
+.big{
+    font-size:30px;
+    font-weight:bold;
+}
+
+.red{ color:#ff4d4d; }
+.green{ color:#00ff9d; }
+
+.bar{
+    width:100%;
+    height:12px;
+    background:#222;
+    border-radius:10px;
+    overflow:hidden;
+    margin:6px 0;
+}
+
+.fill{
+    height:100%;
+    width:0%;
+    transition:1s;
+}
+
+.tai{ background:linear-gradient(90deg,#ff0000,#ffcc00); }
+.xiu{ background:linear-gradient(90deg,#ffcc00,#ff0000); }
+
+.row{
+    display:flex;
+    gap:10px;
+    margin-top:15px;
+}
+
+.box{
+    flex:1;
+    background:rgba(255,255,255,0.08);
+    border-radius:12px;
+    padding:10px;
+    font-size:14px;
+}
+
+.sakura{
+    position:fixed;
+    top:-50px;
+    font-size:20px;
+    animation:fall linear forwards;
+    z-index:1;
+}
+
+@keyframes fall{
+    to{
+        transform:translateY(110vh) rotate(360deg);
+        opacity:0;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <h1>TOKYO MD5</h1>
+    <div class="sub">Nhập mã MD5 để phân tích</div>
+
+    <input id="md5" placeholder="Nhập MD5...">
+
+    <button onclick="phanTich()">PHÂN TÍCH</button>
+
+    <div class="result">
+
+        <div>Dự đoán:</div>
+        <div id="ketqua" class="big">---</div>
+
+        <div>Tài</div>
+        <div class="bar"><div id="taiBar" class="fill tai"></div></div>
+
+        <div>Xỉu</div>
+        <div class="bar"><div id="xiuBar" class="fill xiu"></div></div>
+
+        <div class="row">
+            <div class="box">
+                Tỉ lệ<br>
+                <b id="tile">0%</b>
+            </div>
+
+            <div class="box">
+                Nhà cái<br>
+                <b id="nhacai">---</b>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+
+/* 🌸 hoa rơi */
+function createSakura(){
+    const el=document.createElement("div");
+    el.className="sakura";
+    el.innerHTML="🌸";
+    el.style.left=Math.random()*100+"vw";
+    el.style.animationDuration=(5+Math.random()*5)+"s";
+    document.body.appendChild(el);
+    setTimeout(()=>el.remove(),10000);
+}
+setInterval(createSakura,300);
+
+
+/* ================= ADMIN FULL ================= */
+
+let historyData=[];
+let lastResult=null;
+
+/* tools */
+
+function hexToInt(h){
+    return parseInt(h,16)>>>0;
+}
+
+function rotl(n,b){
+    return (n<<b)|(n>>>(32-b));
+}
+
+function entropy(str){
+    return new Set(str).size;
+}
+
+function chaos(a,b,c,d){
+
+    let l1=(a ^ rotl(b,5) ^ rotl(c,9) ^ rotl(d,13))>>>0;
+    let l2=((l1 + b*7) ^ rotl(c,11) ^ (d>>>3))>>>0;
+    let l3=((l2 ^ a) + rotl(l2,17) + c*13)>>>0;
+    let l4=((l3 ^ rotl(b,9)) + d*5)>>>0;
+    let l5=(l4 ^ rotl(l4,15) ^ 0xA5A5A5A5)>>>0;
+
+    return l5>>>0;
+}
+
+
+/* ===== API ===== */
+
+async function loadHistory(){
+
+    try{
+
+        let res=await fetch("https://wtxmd52.tele68.com/v1/txmd5/sessions");
+        let data=await res.json();
+
+        historyData=data.slice(0,30);
+
+        autoDetect();
+
+    }catch(e){
+        console.log("API lỗi");
+    }
+
+}
+
+function aiTrend(){
+
+    if(historyData.length===0) return 0;
+
+    let score=0;
+
+    for(let item of historyData){
+        if(item.result==="tai") score++;
+        else score--;
+    }
+
+    return score;
+}
+
+
+/* ===== phân tích MD5 ===== */
+
+function analyzeMD5(md5){
+
+    let a=hexToInt(md5.substring(0,8));
+    let b=hexToInt(md5.substring(8,16));
+    let c=hexToInt(md5.substring(16,24));
+    let d=hexToInt(md5.substring(24,32));
+
+    let rev=md5.split("").reverse().join("");
+    let extra=hexToInt(rev.substring(0,8));
+
+    let ent=entropy(md5);
+
+    let core=chaos(a,b,c,d);
+
+    core=(core ^ extra ^ (ent*13131))>>>0;
+
+    let trend=aiTrend();
+
+    core=(core + trend*9999)>>>0;
+
+    let final=((core%100)+100)%100;
+
+    if(lastResult!==null){
+        if(Math.abs(final-lastResult)<6){
+            final=(final+23)%100;
+        }
+    }
+
+    lastResult=final;
+
+    let result= final>=50 ? "TÀI":"XỈU";
+
+    let diff=Math.abs(final-50);
+
+    let percent=
+        65 +
+        Math.floor(diff*1.2) +
+        Math.floor(ent/2) +
+        Math.abs(trend);
+
+    if(percent>100) percent=100;
+    if(percent<60) percent=60;
+
+    let canThiep=
+        (core%7===0 || core%11===0 || core%13===0 || ent<9)
+        ?"Can thiệp":"An toàn";
+
+    return {
+        result,
+        percent,
+        final,
+        canThiep
+    };
+}
+
+
+/* ===== hiển thị ===== */
+
+function showResult(obj){
+
+    let kqEl=document.getElementById("ketqua");
+
+    kqEl.innerHTML=obj.result;
+    kqEl.className="big "+(obj.result==="TÀI"?"red":"green");
+
+    document.getElementById("tile").innerHTML=obj.percent+"%";
+    document.getElementById("nhacai").innerHTML=obj.canThiep;
+
+    let taiPercent=obj.final;
+    let xiuPercent=100-obj.final;
+
+    document.getElementById("taiBar").style.width=taiPercent+"%";
+    document.getElementById("xiuBar").style.width=xiuPercent+"%";
+
+    if(obj.percent>=92){
+        navigator.vibrate(300);
+        alert("🔥 Kèo đẹp: "+obj.result+" ("+obj.percent+"%)");
+    }
+}
+
+
+/* ===== auto detect MD5 mới ===== */
+
+function autoDetect(){
+
+    if(historyData.length===0) return;
+
+    let latest=historyData[0];
+
+    if(!latest.md5) return;
+
+    let obj=analyzeMD5(latest.md5);
+
+    showResult(obj);
+
+}
+
+
+/* ===== nút ===== */
+
+function phanTich(){
+
+    let md5=document.getElementById("md5").value.trim();
+
+    if(md5.length<32){
+        alert("MD5 không hợp lệ");
+        return;
+    }
+
+    let obj=analyzeMD5(md5);
+
+    showResult(obj);
+
+}
+
+
+/* ===== auto load ===== */
+
+setInterval(loadHistory,5000);
+loadHistory();
+
+</script>
+
+</body>
+</html>
